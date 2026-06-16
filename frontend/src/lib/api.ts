@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4444',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://qifaya-project.vercel.app',
 });
 
 api.interceptors.request.use((config) => {
