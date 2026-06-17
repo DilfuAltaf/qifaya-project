@@ -1,355 +1,266 @@
-# Qifaya Backend PRD
+# Product Images Feature PRD
 
-## Project Information
+## Overview
 
-### Project Name
+Menambahkan fitur gambar produk untuk Qifaya.
 
-Qifaya Backend API
+Setiap produk memiliki:
 
-### Version
+* 1 gambar utama (thumbnail)
+* 0 atau lebih gambar detail
 
-1.0 MVP
-
-### Framework
-
-NestJS
-
-### Database
-
-PostgreSQL
-
-### ORM
-
-TypeORM
-
-### Authentication
-
-JWT Authentication
+Semua gambar disimpan di Supabase Storage dan URL disimpan di database.
 
 ---
 
-# 1. Overview
+# Goals
 
-Backend Qifaya bertugas menyediakan API untuk mengelola data produk, kategori, ukuran produk, dan autentikasi admin.
-
-Backend tidak menangani pembayaran, checkout, tracking pesanan, maupun integrasi WhatsApp.
-
-Website Qifaya berfungsi sebagai katalog produk dan media branding.
-
----
-
-# 2. Goals
-
-## Business Goals
-
-* Mempermudah admin mengelola katalog produk.
-* Mengurangi kebutuhan perubahan data langsung pada source code.
-* Menyediakan sistem pengelolaan produk yang sederhana.
-
-## Technical Goals
-
-* API RESTful.
-* Mudah dikembangkan.
-* Mudah diintegrasikan dengan Vue.js.
-* Aman untuk penggunaan admin.
+* Admin dapat mengunggah gambar utama produk.
+* Admin dapat mengunggah beberapa gambar detail produk.
+* Frontend dapat menampilkan thumbnail produk pada halaman listing.
+* Frontend dapat menampilkan galeri gambar pada halaman detail produk.
 
 ---
 
-# 3. User Roles
+# Database Design
 
-## Admin
+## Table: product_images
 
-Hak akses:
+```sql
+CREATE TABLE product_images (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
 
-* Login
-* Tambah produk
-* Edit produk
-* Hapus produk
-* Tambah kategori
-* Edit kategori
-* Hapus kategori
-* Kelola ukuran produk
+  image_url TEXT NOT NULL,
 
----
+  is_primary BOOLEAN DEFAULT FALSE,
 
-# 4. Modules
+  sort_order INTEGER DEFAULT 0,
 
-## Authentication Module
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
 
-### Features
+### Explanation
 
-* Login Admin
-* JWT Authentication
-* Password Hashing
-
-### Endpoint
-
-POST /auth/login
-
-Response:
-
-{
-"accessToken": "jwt_token"
-}
+| Column     | Description                      |
+| ---------- | -------------------------------- |
+| id         | Primary key                      |
+| product_id | Relasi ke produk                 |
+| image_url  | URL gambar dari Supabase Storage |
+| is_primary | Menentukan gambar utama          |
+| sort_order | Urutan tampilan gambar           |
+| created_at | Tanggal upload                   |
 
 ---
 
-## Products Module
+# Business Rules
 
-### Features
+## Main Image
 
-* Ambil semua produk
-* Ambil detail produk
-* Tambah produk
-* Edit produk
-* Hapus produk
+* Setiap produk wajib memiliki 1 gambar utama.
+* Hanya boleh ada 1 gambar utama per produk.
+* Gambar utama digunakan untuk:
 
-### Endpoints
+  * Product Card
+  * Homepage
+  * Search Result
+  * Related Product
 
-GET /products
+## Detail Images
 
-GET /products/:id
+* Produk dapat memiliki banyak gambar detail.
+* Gambar detail digunakan pada halaman detail produk.
+* Maksimal 10 gambar detail per produk.
+
+---
+
+# Backend Requirements
+
+## Create Product
+
+Endpoint:
 
 POST /products
 
-PATCH /products/:id
+Request:
 
-DELETE /products/:id
+* product data
+* main image
+* detail images[]
 
----
+Flow:
 
-## Categories Module
-
-### Features
-
-* Ambil kategori
-* Tambah kategori
-* Edit kategori
-* Hapus kategori
-
-### Endpoints
-
-GET /categories
-
-POST /categories
-
-PATCH /categories/:id
-
-DELETE /categories/:id
+1. Upload main image ke Supabase Storage.
+2. Upload seluruh detail images ke Supabase Storage.
+3. Simpan produk ke database.
+4. Simpan seluruh data gambar ke table product_images.
 
 ---
 
-## Product Sizes Module
+## Upload Product Images
 
-### Features
+Endpoint:
 
-* Tambah ukuran produk
-* Hapus ukuran produk
-* Ambil ukuran produk
+POST /products/:id/images
 
-### Endpoints
+Function:
 
-GET /products/:id/sizes
-
-POST /products/:id/sizes
-
-DELETE /products/:id/sizes/:sizeId
+* Menambahkan gambar baru ke produk.
 
 ---
 
-## Upload Module
+## Delete Product Image
 
-### Features
+Endpoint:
 
-* Upload gambar produk
-* Hapus gambar produk
+DELETE /products/images/:imageId
 
-### Endpoints
+Function:
 
-POST /upload
-
-DELETE /upload/:id
+* Menghapus gambar dari database.
+* Menghapus file dari Supabase Storage.
 
 ---
 
-# 5. Database Design
+## Update Main Image
 
-## users
+Endpoint:
 
-| Field      | Type      |
-| ---------- | --------- |
-| id         | uuid      |
-| email      | varchar   |
-| password   | varchar   |
-| created_at | timestamp |
-| updated_at | timestamp |
+PATCH /products/:id/main-image
 
----
+Function:
 
-## categories
-
-| Field      | Type      |
-| ---------- | --------- |
-| id         | uuid      |
-| name       | varchar   |
-| created_at | timestamp |
-| updated_at | timestamp |
+* Mengubah gambar utama.
+* Set gambar lama menjadi is_primary = false.
+* Set gambar baru menjadi is_primary = true.
 
 ---
 
-## products
+# API Response
 
-| Field       | Type      |
-| ----------- | --------- |
-| id          | uuid      |
-| name        | varchar   |
-| slug        | varchar   |
-| description | text      |
-| gender      | varchar   |
-| image_url   | varchar   |
-| category_id | uuid      |
-| created_at  | timestamp |
-| updated_at  | timestamp |
+GET /products
 
----
+Example:
 
-## product_sizes
-
-| Field      | Type      |
-| ---------- | --------- |
-| id         | uuid      |
-| product_id | uuid      |
-| size       | varchar   |
-| sort_order | integer   |
-| created_at | timestamp |
+```json
+{
+  "id": "product-id",
+  "name": "Gamis Premium",
+  "slug": "gamis-premium",
+  "mainImage": "https://storage.supabase.co/...",
+  "category": {
+    "id": "category-id",
+    "name": "Gamis"
+  }
+}
+```
 
 ---
 
-# 6. Product Rules
+GET /products/:id
 
-## Gender
+Example:
 
-Allowed Values:
-
-* MALE
-* FEMALE
-* UNISEX
-
----
-
-## Product Sizes
-
-Contoh ukuran:
-
-* S
-* M
-* L
-* XL
-* XXL
-* ALL SIZE
-
-Admin dapat menambahkan lebih dari satu ukuran pada setiap produk.
-
----
-
-# 7. Security Requirements
-
-## Authentication
-
-* JWT Token
-* Protected Routes
-* Token Expiration
-
-## Password
-
-* Hash menggunakan bcrypt
-* Password tidak boleh disimpan dalam bentuk plain text
+```json
+{
+  "id": "product-id",
+  "name": "Gamis Premium",
+  "description": "Lorem ipsum",
+  "images": [
+    {
+      "id": "1",
+      "imageUrl": "https://...",
+      "isPrimary": true
+    },
+    {
+      "id": "2",
+      "imageUrl": "https://...",
+      "isPrimary": false
+    },
+    {
+      "id": "3",
+      "imageUrl": "https://...",
+      "isPrimary": false
+    }
+  ]
+}
+```
 
 ---
 
-# 8. Validation Rules
+# Frontend Requirements
 
-## Product
+## Product Form
 
-Nama Produk:
+### Main Image Section
 
-* Wajib diisi
+Field:
 
-Deskripsi:
+* Main Image
 
-* Wajib diisi
+Rules:
 
-Kategori:
-
-* Wajib dipilih
-
-Gender:
-
-* Wajib dipilih
-
-Minimal ukuran:
-
-* 1 ukuran
+* Wajib diisi saat membuat produk.
+* Hanya boleh upload 1 gambar.
+* Preview gambar sebelum submit.
 
 ---
 
-## Category
+### Detail Images Section
 
-Nama kategori:
+Field:
 
-* Unik
-* Tidak boleh kosong
+* Detail Images
 
----
+Rules:
 
-# 9. Non Functional Requirements
-
-## Performance
-
-* Response API < 500ms untuk query normal
-
-## Scalability
-
-* Struktur modular NestJS
-
-## Maintainability
-
-* Menggunakan service layer
-* Menggunakan DTO Validation
-* Menggunakan Repository Pattern (TypeORM)
+* Opsional.
+* Bisa upload multiple images.
+* Maksimal 10 gambar.
+* Preview seluruh gambar sebelum submit.
+* Bisa menghapus gambar sebelum submit.
 
 ---
 
-# 10. Folder Structure
+# UI Layout
 
-src/
+Product Form
 
-├── auth/
+Main Image
+[ Upload 1 Image ]
 
+Detail Images
+[ Upload Multiple Images ]
+
+Preview Detail Images
+[ Image 1 ]
+[ Image 2 ]
+[ Image 3 ]
+
+---
+
+# Storage Structure
+
+Bucket:
+
+product-images
+
+Folder Structure:
+
+product-images/
 ├── products/
-
-├── categories/
-
-├── product-sizes/
-
-├── upload/
-
-├── common/
-
-├── database/
-
-└── main.ts
+│    ├── product-id/
+│    │    ├── main.jpg
+│    │    ├── detail-1.jpg
+│    │    ├── detail-2.jpg
+│    │    └── detail-3.jpg
 
 ---
 
-# 11. Future Enhancements
+# Success Criteria
 
-Version 2.0
-
-* Product Stock Management
-* Dashboard Analytics
-* Multi Admin
-* Product Reviews
-* Customer Accounts
-* Order Management
-* Payment Integration
+* Produk memiliki tepat 1 gambar utama.
+* Produk dapat memiliki banyak gambar detail.
+* Seluruh gambar tersimpan di Supabase Storage.
+* Gambar dapat ditambah, diubah, dan dihapus melalui dashboard admin.

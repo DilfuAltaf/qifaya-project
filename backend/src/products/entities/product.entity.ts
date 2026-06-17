@@ -7,13 +7,20 @@ export enum ProductGender {
   UNISEX = 'UNISEX',
 }
 
+export class ProductImage {
+  id: string;
+  imageUrl: string;
+  isPrimary: boolean;
+  sortOrder: number;
+}
+
 export class Product {
   id: string;
   name: string;
   slug: string;
   description: string;
   gender: ProductGender;
-  imageUrl?: string;
+  images?: ProductImage[];
   category?: Category;
   sizes?: ProductSize[];
   createdAt?: Date;

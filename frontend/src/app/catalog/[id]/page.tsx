@@ -13,6 +13,7 @@ export default function ProductDetail({ params }: { params: Promise<{ id: string
   const [product, setProduct] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedSize, setSelectedSize] = useState<string>('');
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -76,16 +77,48 @@ Mohon informasi mengenai ketersediaan dan cara pemesanan. Terima kasih.`;
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16">
           
           {/* Photo Section (Left/Top) */}
-          <div className="animate-fade-in-up">
+          <div className="animate-fade-in-up flex flex-col gap-4">
             <div className="aspect-[3/4] bg-gray-50 rounded-3xl overflow-hidden relative shadow-sm border border-gray-100">
-              {product.imageUrl ? (
-                <Image src={product.imageUrl} alt={product.name} fill className="object-cover" unoptimized />
+              {product.images && product.images.length > 0 ? (
+                <Image src={product.images[activeImageIndex]?.imageUrl} alt={product.name} fill className="object-cover transition-all duration-300" unoptimized />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <Package className="w-24 h-24 text-gray-300" />
                 </div>
               )}
+              {/* Arrows for sliding */}
+              {product.images && product.images.length > 1 && (
+                <>
+                  <button 
+                    onClick={() => setActiveImageIndex(prev => (prev === 0 ? product.images.length - 1 : prev - 1))}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow-md transition-colors"
+                  >
+                    <ArrowLeft className="w-5 h-5 text-brand-primary" />
+                  </button>
+                  <button 
+                    onClick={() => setActiveImageIndex(prev => (prev === product.images.length - 1 ? 0 : prev + 1))}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/80 hover:bg-white rounded-full flex items-center justify-center shadow-md transition-colors rotate-180"
+                  >
+                    <ArrowLeft className="w-5 h-5 text-brand-primary" />
+                  </button>
+                </>
+              )}
             </div>
+            
+            {/* Thumbnails */}
+            {product.images && product.images.length > 1 && (
+              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                {product.images.map((img: any, idx: number) => (
+                  <button 
+                    key={img.id}
+                    onClick={() => setActiveImageIndex(idx)}
+                    className={`relative w-20 h-24 flex-shrink-0 rounded-xl overflow-hidden border-2 transition-all ${activeImageIndex === idx ? 'border-brand-primary opacity-100 shadow-md' : 'border-transparent opacity-60 hover:opacity-100'}`}
+                  >
+                    <Image src={img.imageUrl} alt={`${product.name} ${idx + 1}`} fill className="object-cover" unoptimized />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Info Section (Right/Bottom) */}

@@ -11,37 +11,52 @@ export default function Catalog() {
   const [categories, setCategories] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Filters
+  // Pagination & Filters
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedGender, setSelectedGender] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+  // Fetch categories once
+  useEffect(() => {
+    api.get('/categories')
+      .then(res => setCategories(res.data || []))
+      .catch(err => console.error('Failed to fetch categories:', err));
+  }, []);
+
+  // Fetch products when filters or page change
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
-        const [prodRes, catRes] = await Promise.all([
-          api.get('/products'),
-          api.get('/categories')
-        ]);
-        setProducts(prodRes.data || []);
-        setCategories(catRes.data || []);
+        const params: any = { page, limit: 12 };
+        if (selectedCategory) params.categoryId = selectedCategory;
+        if (selectedGender) params.gender = selectedGender;
+        if (searchQuery) params.name = searchQuery;
+
+        const prodRes = await api.get('/products', { params });
+        setProducts(prodRes.data?.data || prodRes.data || []);
+        setTotalPages(prodRes.data?.meta?.totalPages || 1);
       } catch (error) {
-        console.error('Failed to fetch catalog:', error);
+        console.error('Failed to fetch products:', error);
       } finally {
         setIsLoading(false);
       }
     };
-    fetchData();
-  }, []);
 
-  // Filter Logic
-  const filteredProducts = products.filter(product => {
-    const matchCategory = selectedCategory ? product.category?.id === selectedCategory : true;
-    const matchGender = selectedGender ? product.gender?.toLowerCase() === selectedGender : true;
-    const matchSearch = searchQuery ? product.name.toLowerCase().includes(searchQuery.toLowerCase()) : true;
-    return matchCategory && matchGender && matchSearch;
-  });
+    const timer = setTimeout(() => {
+      fetchData();
+    }, 300); // debounce search
+    
+    return () => clearTimeout(timer);
+  }, [page, selectedCategory, selectedGender, searchQuery]);
+
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [selectedCategory, selectedGender, searchQuery]);
 
   return (
     <div className="flex flex-col min-h-screen pt-24 pb-12 bg-brand-secondary">
@@ -116,20 +131,23 @@ export default function Catalog() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 md:gap-8">
           {isLoading ? (
             <p className="col-span-full text-center text-gray-500 py-10">Memuat katalog...</p>
-          ) : filteredProducts.length === 0 ? (
+          ) : products.length === 0 ? (
             <p className="col-span-full text-center text-gray-500 py-10">Tidak ada produk yang cocok dengan pencarian atau filter.</p>
           ) : (
-            filteredProducts.map((product) => (
+            products.map((product) => (
               <Link href={`/catalog/${product.id}`} key={product.id} className="group cursor-pointer block">
                 <div className="aspect-[3/4] bg-white rounded-xl mb-3 md:mb-4 relative overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300">
                   <div className="absolute inset-0 bg-brand-primary/5 transition-opacity opacity-0 group-hover:opacity-100 z-10" />
-                  {product.imageUrl ? (
-                    <Image src={product.imageUrl} alt={product.name} fill className="object-cover" unoptimized />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                      <Package className="w-12 h-12 text-gray-300" />
-                    </div>
-                  )}
+                  {(() => {
+                    const mainImage = product.images?.find((img: any) => img.isPrimary) || product.images?.[0];
+                    return mainImage ? (
+                      <Image src={mainImage.imageUrl} alt={product.name} fill className="object-cover" unoptimized />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                        <Package className="w-12 h-12 text-gray-300" />
+                      </div>
+                    );
+                  })()}
                 </div>
                 <h3 className="font-medium text-brand-text mb-1 group-hover:text-brand-primary transition-colors line-clamp-1 text-sm md:text-base">{product.name}</h3>
                 <div className="flex justify-between items-center">
@@ -140,6 +158,29 @@ export default function Catalog() {
             ))
           )}
         </div>
+
+        {/* Pagination Controls */}
+        {!isLoading && totalPages > 1 && (
+          <div className="flex justify-center items-center mt-12 gap-2">
+            <button 
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-4 py-2 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-700 disabled:opacity-50 hover:bg-gray-50"
+            >
+              Sebelumnya
+            </button>
+            <span className="text-sm text-gray-500 px-4">
+              Halaman {page} dari {totalPages}
+            </span>
+            <button 
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="px-4 py-2 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-700 disabled:opacity-50 hover:bg-gray-50"
+            >
+              Selanjutnya
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
