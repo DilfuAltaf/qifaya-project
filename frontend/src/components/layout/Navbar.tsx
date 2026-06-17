@@ -3,13 +3,25 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Search, Menu, X } from 'lucide-react';
 
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const pathname = usePathname();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/catalog?search=${encodeURIComponent(searchQuery)}`);
+      setIsSearchOpen(false);
+      setSearchQuery('');
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -39,9 +51,25 @@ export default function Navbar() {
             </div>
 
             <div className="flex items-center space-x-5">
-              <Link href="/catalog" aria-label="Search" className="text-brand-text hover:text-brand-primary transition-colors">
-                <Search className="w-5 h-5" />
-              </Link>
+              {isSearchOpen ? (
+                <form onSubmit={handleSearch} className="flex items-center">
+                  <input 
+                    type="text" 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Cari produk..."
+                    className="border-b border-brand-primary bg-transparent focus:outline-none text-sm px-2 py-1 w-32 md:w-48 text-brand-text"
+                    autoFocus
+                  />
+                  <button type="button" onClick={() => setIsSearchOpen(false)} className="text-gray-400 hover:text-gray-600 ml-2">
+                    <X className="w-4 h-4" />
+                  </button>
+                </form>
+              ) : (
+                <button aria-label="Search" onClick={() => setIsSearchOpen(true)} className="text-brand-text hover:text-brand-primary transition-colors">
+                  <Search className="w-5 h-5" />
+                </button>
+              )}
               <button 
                 aria-label="Menu" 
                 className="md:hidden text-brand-text hover:text-brand-primary transition-colors"

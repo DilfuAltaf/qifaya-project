@@ -19,6 +19,15 @@ export default function Catalog() {
   const [selectedGender, setSelectedGender] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+  // Read search query from URL on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const q = params.get('search');
+      if (q) setSearchQuery(q);
+    }
+  }, []);
+
   // Fetch categories once
   useEffect(() => {
     api.get('/categories')
