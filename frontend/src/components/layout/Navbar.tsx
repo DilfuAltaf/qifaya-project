@@ -39,9 +39,9 @@ export default function Navbar() {
             </div>
 
             <div className="flex items-center space-x-5">
-              <button aria-label="Search" className="text-brand-text hover:text-brand-primary transition-colors">
+              <Link href="/catalog" aria-label="Search" className="text-brand-text hover:text-brand-primary transition-colors">
                 <Search className="w-5 h-5" />
-              </button>
+              </Link>
               <button 
                 aria-label="Menu" 
                 className="md:hidden text-brand-text hover:text-brand-primary transition-colors"

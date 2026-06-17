@@ -114,7 +114,7 @@ export class ProductsService {
     if (query) {
       if (query.categoryId) request = request.eq('category_id', query.categoryId);
       if (query.gender) request = request.eq('gender', query.gender);
-      if (query.name) request = request.ilike('name', `%${query.name}%`);
+      if (query.name) request = request.or(`name.ilike.%${query.name}%,description.ilike.%${query.name}%`);
       if (query.slug) request = request.eq('slug', query.slug);
     }
 
