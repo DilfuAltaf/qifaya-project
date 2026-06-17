@@ -1,15 +1,17 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { Search, Filter, Package } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 
-export default function Catalog() {
+function CatalogContent() {
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const searchParams = useSearchParams();
 
   // Pagination & Filters
   const [page, setPage] = useState(1);
@@ -17,16 +19,16 @@ export default function Catalog() {
 
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedGender, setSelectedGender] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  
+  // Initialize searchQuery from URL params
+  const initialSearch = searchParams?.get('search') || '';
+  const [searchQuery, setSearchQuery] = useState<string>(initialSearch);
 
-  // Read search query from URL on mount
+  // Update searchQuery when URL params change
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const q = params.get('search');
-      if (q) setSearchQuery(q);
-    }
-  }, []);
+    const q = searchParams?.get('search') || '';
+    setSearchQuery(q);
+  }, [searchParams]);
 
   // Fetch categories once
   useEffect(() => {
@@ -192,5 +194,13 @@ export default function Catalog() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function Catalog() {
+  return (
+    <Suspense fallback={<div className="min-h-screen pt-24 text-center">Loading...</div>}>
+      <CatalogContent />
+    </Suspense>
   );
 }
