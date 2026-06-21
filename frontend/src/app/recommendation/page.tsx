@@ -1,18 +1,66 @@
 "use client";
 
 import { useState } from 'react';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, Sparkles, Package } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
+import api from '@/lib/api';
 
 export default function Recommendation() {
   const [gender, setGender] = useState("");
   const [need, setNeed] = useState("");
   const [showResult, setShowResult] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [products, setProducts] = useState<any[]>([]);
 
-  const handleShowResult = (e: React.FormEvent) => {
+  const handleShowResult = async (e: React.FormEvent) => {
     e.preventDefault();
     if (gender && need) {
+      setIsLoading(true);
       setShowResult(true);
+      
+      try {
+        const mappedGender = gender === "Pria" ? "male" : "female";
+        
+        // We fetch a list of products by gender, and maybe try to filter them by the "need" keywords.
+        const prodRes = await api.get('/products', { 
+          params: { 
+            gender: mappedGender,
+            limit: 20 // Fetch a bit more so we can filter locally
+          } 
+        });
+        
+        let fetchedProducts = prodRes.data?.data || prodRes.data || [];
+        
+        // keywords mapping
+        let keywords: string[] = [];
+        if (need === 'Harian / Santai') keywords = ['harian', 'santai', 'casual', 'kaos'];
+        else if (need === 'Formal / Pesta') keywords = ['formal', 'pesta', 'resmi', 'jas', 'batik'];
+        else if (need === 'Kerja / Kuliah') keywords = ['kerja', 'kuliah', 'kemeja', 'rapi'];
+        else if (need === 'Ibadah') keywords = ['ibadah', 'koko', 'gamis', 'muslim', 'shalat'];
+
+        if (keywords.length > 0) {
+          const scoredProducts = fetchedProducts.map((p: any) => {
+            let score = 0;
+            const text = `${p.name || ''} ${p.description || ''} ${p.category?.name || ''}`.toLowerCase();
+            keywords.forEach(kw => {
+              if (text.includes(kw)) score++;
+            });
+            return { ...p, _score: score };
+          });
+          
+          // Sort by score descending
+          scoredProducts.sort((a: any, b: any) => b._score - a._score);
+          fetchedProducts = scoredProducts;
+        }
+
+        // Just take top 2 for recommendations
+        setProducts(fetchedProducts.slice(0, 2));
+      } catch (error) {
+        console.error("Failed to fetch recommendations:", error);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -83,10 +131,10 @@ export default function Recommendation() {
 
                 <button 
                   type="submit" 
-                  disabled={!gender || !need}
+                  disabled={!gender || !need || isLoading}
                   className="w-full flex items-center justify-center gap-2 bg-brand-primary text-white py-4 rounded-xl font-bold hover:bg-brand-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Lihat Rekomendasi
+                  {isLoading ? 'Mencari...' : 'Lihat Rekomendasi'}
                   <ArrowRight className="w-5 h-5" />
                 </button>
               </form>
@@ -100,6 +148,11 @@ export default function Recommendation() {
                   <h3 className="text-lg font-bold text-brand-text/70 mb-2">Belum ada rekomendasi</h3>
                   <p className="text-sm text-brand-text/50">Silakan lengkapi formulir di samping untuk melihat gaya terbaik yang kami siapkan khusus untuk Anda.</p>
                 </div>
+              ) : isLoading ? (
+                <div className="h-full min-h-[300px] flex flex-col items-center justify-center text-center p-8 animate-fade-in-up">
+                  <div className="w-10 h-10 border-4 border-brand-primary/20 border-t-brand-primary rounded-full animate-spin mb-4"></div>
+                  <p className="text-brand-text/70">Mencarikan gaya terbaik untuk Anda...</p>
+                </div>
               ) : (
                 <div className="animate-fade-in-up">
                   <div className="flex justify-between items-end mb-6">
@@ -109,20 +162,33 @@ export default function Recommendation() {
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    {[1, 2].map((item) => (
-                      <Link href="/catalog" key={item} className="group border border-brand-secondary rounded-2xl p-4 hover:border-brand-primary/20 hover:shadow-lg transition-all bg-white flex flex-col">
-                        <div className="aspect-[3/4] bg-brand-secondary/50 rounded-xl mb-4 relative overflow-hidden">
-                          <div className="absolute inset-0 bg-brand-primary/5" />
-                          <div className="w-full h-full flex items-center justify-center">
-                             <span className="text-brand-text/30 font-serif text-sm">Product Match {item}</span>
+                  {products.length === 0 ? (
+                    <div className="bg-brand-secondary/30 p-6 rounded-2xl text-center border border-brand-secondary">
+                      <p className="text-brand-text/60">Maaf, kami belum memiliki produk yang sangat cocok untuk kriteria ini.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      {products.map((product) => (
+                        <Link href={`/catalog/${product.id}`} key={product.id} className="group border border-brand-secondary rounded-2xl p-4 hover:border-brand-primary/20 hover:shadow-lg transition-all bg-white flex flex-col">
+                          <div className="aspect-[3/4] bg-brand-secondary/50 rounded-xl mb-4 relative overflow-hidden">
+                            <div className="absolute inset-0 bg-brand-primary/5 z-10 transition-opacity opacity-0 group-hover:opacity-100" />
+                            {(() => {
+                              const mainImage = product.images?.find((img: any) => img.isPrimary) || product.images?.[0];
+                              return mainImage ? (
+                                <Image src={mainImage.imageUrl} alt={product.name} fill className="object-cover" unoptimized />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                                  <Package className="w-8 h-8 text-gray-300" />
+                                </div>
+                              );
+                            })()}
                           </div>
-                        </div>
-                        <h3 className="font-bold text-brand-text group-hover:text-brand-primary transition-colors text-sm md:text-base line-clamp-1">Perfect Match Set {item}</h3>
-                        <p className="text-xs md:text-sm text-brand-text/60 mt-1">Sangat cocok untuk kebutuhan Anda.</p>
-                      </Link>
-                    ))}
-                  </div>
+                          <h3 className="font-bold text-brand-text group-hover:text-brand-primary transition-colors text-sm md:text-base line-clamp-1">{product.name}</h3>
+                          <p className="text-xs md:text-sm text-brand-text/60 mt-1 line-clamp-1">{product.category?.name}</p>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -133,3 +199,4 @@ export default function Recommendation() {
     </div>
   );
 }
+
